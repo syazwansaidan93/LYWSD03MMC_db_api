@@ -86,7 +86,7 @@ def setup_database():
     ''')
     conn.commit()
     conn.close()
-    logging.info("Database setup complete (no mac_address column).")
+    logging.info("Database setup complete.")
 
 def store_sensor_data(temperature, humidity):
     """Stores a single temperature and humidity reading."""
