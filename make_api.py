@@ -3,16 +3,13 @@ import sqlite3
 import json
 from datetime import datetime
 from flask import Flask, jsonify, request
-from flask_cors import CORS # Import Flask-CORS for cross-origin requests
+from flask_cors import CORS
 
-# --- Configuration Constants (matching the collector script) ---
 DATABASE_NAME = "sensor_data.db"
 
-# --- Flask App Setup ---
 app = Flask(__name__)
-CORS(app) # Enable CORS for all routes, allowing your frontend to access the API
+CORS(app)
 
-# --- Database Functions ---
 def get_db_connection():
     """Establishes and returns a connection to the SQLite database."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -21,7 +18,34 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row # Allows accessing columns by name
     return conn
 
-# --- API Endpoints ---
+def _format_sensor_data_from_row(row, include_date=True):
+    """
+    Helper function to parse a database row and format sensor data
+    into the desired dictionary structure.
+
+    Args:
+        row (sqlite3.Row): A single row fetched from the database.
+        include_date (bool): If True, includes the 'date' field in the output.
+
+    Returns:
+        dict: Formatted sensor data.
+    """
+    # Parse the full timestamp string from the database
+    dt_object = datetime.strptime(row["timestamp"], '%Y-%m-%d %H:%M:%S.%f')
+    
+    # Format time (excluding seconds and microseconds)
+    formatted_time = dt_object.strftime('%H:%M')
+    
+    formatted_data = {
+        "time": formatted_time,
+        "temp": str(row["temperature"]), # Converted to string
+        "humid": str(row["humidity"]) # Converted to string
+    }
+
+    if include_date:
+        formatted_data["date"] = dt_object.strftime('%Y-%m-%d')
+    
+    return formatted_data
 
 @app.route('/history', methods=['GET'])
 def get_all_sensor_data():
@@ -39,6 +63,7 @@ def get_all_sensor_data():
     if order not in ['asc', 'desc']:
         return jsonify({"error": "Invalid 'order' parameter. Use 'asc' or 'desc'."}), 400
 
+    # Keep timestamp in the query as it's needed for sorting and retrieval
     query = "SELECT timestamp, temperature, humidity FROM sensor_readings ORDER BY timestamp " + order
     if limit:
         query += f" LIMIT {limit}"
@@ -47,14 +72,8 @@ def get_all_sensor_data():
         cursor.execute(query)
         rows = cursor.fetchall()
         
-        # Convert rows to a list of dictionaries for JSON serialization
-        data = []
-        for row in rows:
-            data.append({
-                "timestamp": row["timestamp"],
-                "temperature": row["temperature"],
-                "humidity": row["humidity"]
-            })
+        # Use the helper function to format each row for /history, including the date
+        data = [_format_sensor_data_from_row(row, include_date=True) for row in rows]
         
         return jsonify(data), 200
     except Exception as e:
@@ -77,11 +96,8 @@ def get_latest_sensor_data():
         row = cursor.fetchone()
 
         if row:
-            latest_data = {
-                "timestamp": row["timestamp"],
-                "temperature": row["temperature"],
-                "humidity": row["humidity"]
-            }
+            # Use the helper function to format the single row for /latest, excluding the date
+            latest_data = _format_sensor_data_from_row(row, include_date=False)
             return jsonify(latest_data), 200
         else:
             return jsonify({"message": "No sensor data found."}), 404
@@ -90,7 +106,3 @@ def get_latest_sensor_data():
         return jsonify({"error": "Could not retrieve latest sensor data."}), 500
     finally:
         conn.close()
-
-# The app.run() call is removed here because Gunicorn will handle running the app.
-# if __name__ == '__main__':
-#     app.run(host='0.0.0.0', port=3040, debug=True)
