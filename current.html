@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Weather Info</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>☁️</text></svg>">
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #A0D0D8, #90C0C8);
+            overflow: auto;
+            touch-action: manipulation;
+        }
+        canvas {
+            display: block;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            max-width: 90%;
+            max-height: 90vh;
+            width: 380px;
+            height: 580px;
+            background-color: rgba(255, 255, 255, 0.1);
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="weatherCanvas"></canvas>
+
+    <script>
+        const API_URL = "http://suhu.home/latest"; 
+        let weatherData = {"humid":"--","temp":"--","time":"--:--"};
+
+        const canvas = document.getElementById('weatherCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let refreshButton = {
+            x: 0, y: 0, width: 0, height: 0, radius: 10, 
+            isPressed: false,
+            offsetX: 0,
+            offsetY: 0
+        };
+
+        let cloudAnimationOffset = 0;
+        let cloudOpacity = 1;
+        let animationStartTime = 0;
+        const fadeDuration = 500;
+
+        const dpr = window.devicePixelRatio || 1;
+
+        function roundRect(x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+        }
+
+        function getWeatherCondition(temp, humid) {
+            if (isNaN(parseFloat(temp)) || isNaN(parseInt(humid))) {
+                return { icon: '', phrase: 'Data Unavailable' };
+            }
+
+            let icon = '☁️';
+            let phrase = 'Variable Conditions';
+
+            const isHot = parseFloat(temp) >= 30;
+            const isWarm = parseFloat(temp) >= 25 && parseFloat(temp) < 30;
+            const isCool = parseFloat(temp) < 25;
+
+            const isVeryHumid = parseInt(humid) >= 85;
+            const isHumid = parseInt(humid) >= 70 && parseInt(humid) < 85;
+            const isLessHumid = parseInt(humid) < 70;
+
+            if (isHot) {
+                if (isVeryHumid) {
+                    icon = '⛈️';
+                    phrase = 'Hot & Stormy';
+                } else if (isHumid) {
+                    icon = '☀️';
+                    phrase = 'Hot & Humid';
+                } else if (isLessHumid) {
+                    icon = '☀️';
+                    phrase = 'Hot & Clear';
+                }
+            } else if (isWarm) {
+                if (isVeryHumid) {
+                    icon = '🌧️';
+                    phrase = 'Warm & Rainy';
+                } else if (isHumid) {
+                    icon = '☁️';
+                    phrase = 'Warm & Cloudy';
+                } else if (isLessHumid) {
+                    icon = '🌤️';
+                    phrase = 'Warm & Partly Cloudy';
+                }
+            } else if (isCool) {
+                if (isVeryHumid) {
+                    icon = '☔';
+                    phrase = 'Cool & Rainy';
+                } else if (isHumid) {
+                    icon = '☁️';
+                    phrase = 'Cool & Overcast';
+                } else if (isLessHumid) {
+                    icon = '☀️';
+                    phrase = 'Cool & Clear';
+                }
+            }
+            return { icon, phrase };
+        }
+
+        async function fetchData() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                
+                weatherData.humid = data.humid;
+                weatherData.temp = data.temp;
+                weatherData.time = data.time;
+                
+                console.log("Fetched data:", weatherData);
+                animationStartTime = performance.now();
+            } catch (error) {
+                console.error("Error fetching weather data:", error);
+                weatherData.humid = '--';
+                weatherData.temp = '--';
+                weatherData.time = '--:--';
+            } finally {
+            }
+        }
+
+        function drawWeather() {
+            const targetWidth = canvas.clientWidth; 
+            const targetHeight = canvas.clientHeight;
+
+            canvas.width = targetWidth * dpr;
+            canvas.height = targetHeight * dpr;
+
+            ctx.scale(dpr, dpr);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const cardGradient = ctx.createLinearGradient(0, 0, targetWidth, targetHeight);
+            cardGradient.addColorStop(0, 'rgba(80, 140, 160, 0.7)');
+            cardGradient.addColorStop(0.5, 'rgba(110, 170, 190, 0.7)');
+            cardGradient.addColorStop(1, 'rgba(180, 180, 180, 0.6)');
+            ctx.fillStyle = cardGradient;
+            ctx.fillRect(0, 0, targetWidth, targetHeight);
+
+            let currentAlpha = 1;
+            if (animationStartTime > 0) {
+                const elapsed = performance.now() - animationStartTime;
+                currentAlpha = Math.min(1, elapsed / fadeDuration);
+            }
+            ctx.globalAlpha = currentAlpha;
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.textAlign = 'center';
+
+            const now = new Date();
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+            const dayOfWeek = days[now.getDay()];
+            const month = months[now.getMonth()];
+            const date = now.getDate();
+            const year = now.getFullYear();
+            const fullDate = `${dayOfWeek}, ${date} ${month} ${year}`;
+
+            const { icon, phrase } = getWeatherCondition(weatherData.temp, weatherData.humid);
+
+            ctx.font = 'normal 300 1.5em "Inter", sans-serif';
+            ctx.fillText(fullDate, targetWidth / 2, targetHeight * 0.12);
+
+            if (icon !== '') {
+                ctx.font = 'normal 400 5em "Inter", sans-serif';
+                ctx.globalAlpha = cloudOpacity * currentAlpha;
+                ctx.fillText(icon, targetWidth / 2, targetHeight * 0.33 + cloudAnimationOffset);
+                ctx.globalAlpha = currentAlpha;
+            }
+            
+            ctx.font = 'normal 300 1.2em "Inter", sans-serif';
+            ctx.fillText(phrase, targetWidth / 2, targetHeight * 0.47);
+
+            ctx.font = 'normal 700 4em "Inter", sans-serif';
+            ctx.fillText(`${parseFloat(weatherData.temp).toFixed(1)}°C`, targetWidth / 2, targetHeight * 0.60);
+
+            ctx.font = 'normal 300 0.8em "Inter", sans-serif';
+            ctx.fillText(`Last Update: ${weatherData.time}`, targetWidth / 2, targetHeight * 0.67);
+
+            ctx.font = 'normal 400 1.5em "Inter", sans-serif';
+            ctx.fillText('Humidity', targetWidth / 2, targetHeight * 0.75);
+            ctx.font = 'normal 600 2em "Inter", sans-serif';
+            ctx.fillText(`${weatherData.humid}%`, targetWidth / 2, targetHeight * 0.82);
+
+            const buttonWidth = targetWidth * 0.35;
+            const buttonHeight = targetHeight * 0.07;
+            const buttonX = (targetWidth - buttonWidth) / 2;
+            const buttonY = targetHeight * 0.89;
+
+            const drawButtonX = buttonX + refreshButton.offsetX;
+            const drawButtonY = buttonY + refreshButton.offsetY;
+
+            refreshButton.x = buttonX;
+            refreshButton.y = buttonY;
+            refreshButton.width = buttonWidth;
+            refreshButton.height = buttonHeight;
+
+            ctx.fillStyle = refreshButton.isPressed ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.3)';
+            roundRect(drawButtonX, drawButtonY, buttonWidth, buttonHeight, refreshButton.radius);
+            ctx.fill();
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'normal 600 1.2em "Inter", sans-serif';
+            ctx.fillText('Refresh', targetWidth / 2 + refreshButton.offsetX, drawButtonY + buttonHeight / 2 + 5);
+
+            ctx.globalAlpha = 1;
+        }
+
+        function animate(currentTime) {
+            const timeElapsed = currentTime * 0.001;
+
+            cloudAnimationOffset = Math.sin(timeElapsed * 1.5) * 5;
+            cloudOpacity = 0.9 + Math.cos(timeElapsed * 2) * 0.1;
+
+            drawWeather();
+
+            requestAnimationFrame(animate);
+        }
+
+        function getTouchPos(canvasDom, touchEvent) {
+            const rect = canvasDom.getBoundingClientRect();
+            const scaleX = canvasDom.width / rect.width;
+            const scaleY = canvasDom.height / rect.height;
+            const touch = event.touches[0] || event.changedTouches[0];
+            
+            return {
+                x: (touch.clientX - rect.left) * scaleX / dpr,
+                y: (touch.clientY - rect.top) * scaleY / dpr
+            };
+        }
+
+        canvas.addEventListener('mousedown', function(event) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const mouseX = (event.clientX - rect.left) * scaleX / dpr;
+            const mouseY = (event.clientY - rect.top) * scaleY / dpr;
+
+            if (mouseX >= refreshButton.x && mouseX <= refreshButton.x + refreshButton.width &&
+                mouseY >= refreshButton.y && mouseY <= refreshButton.y + refreshButton.height) {
+                refreshButton.isPressed = true;
+                refreshButton.offsetX = 2;
+                refreshButton.offsetY = 2;
+                drawWeather();
+            }
+        });
+
+        canvas.addEventListener('mouseup', function(event) {
+            if (refreshButton.isPressed) {
+                refreshButton.isPressed = false;
+                refreshButton.offsetX = 0;
+                refreshButton.offsetY = 0;
+                fetchData();
+            } 
+        });
+
+        canvas.addEventListener('mouseleave', function(event) {
+            if (refreshButton.isPressed) {
+                refreshButton.isPressed = false;
+                refreshButton.offsetX = 0;
+                refreshButton.offsetY = 0;
+                drawWeather();
+            }
+        });
+
+        canvas.addEventListener('touchstart', function(event) {
+            event.preventDefault();
+            const touchPos = getTouchPos(canvas, event);
+
+            if (touchPos.x >= refreshButton.x && touchPos.x <= refreshButton.x + refreshButton.width &&
+                touchPos.y >= refreshButton.y && touchPos.y <= refreshButton.y + refreshButton.height) {
+                refreshButton.isPressed = true;
+                refreshButton.offsetX = 2;
+                refreshButton.offsetY = 2;
+                drawWeather();
+            }
+        });
+
+        canvas.addEventListener('touchend', function(event) {
+            event.preventDefault();
+            if (refreshButton.isPressed) {
+                refreshButton.isPressed = false;
+                refreshButton.offsetX = 0;
+                refreshButton.offsetY = 0;
+                
+                const touchPos = getTouchPos(canvas, event);
+                if (touchPos.x >= refreshButton.x && touchPos.x <= refreshButton.x + refreshButton.width &&
+                    touchPos.y >= refreshButton.y && touchPos.y <= refreshButton.y + refreshButton.height) {
+                    fetchData();
+                } else {
+                    drawWeather();
+                }
+            }
+        });
+
+        canvas.addEventListener('touchcancel', function(event) {
+            if (refreshButton.isPressed) {
+                refreshButton.isPressed = false;
+                refreshButton.offsetX = 0;
+                refreshButton.offsetY = 0;
+                drawWeather();
+            }
+        });
+
+        window.onload = function() {
+            fetchData();
+            requestAnimationFrame(animate);
+            setInterval(() => {
+                const now = new Date();
+                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                const dayOfWeek = days[now.getDay()];
+                const month = months[now.getMonth()];
+                const date = now.getDate();
+                const year = now.getFullYear();
+            }, 60 * 1000);
+        };
+
+        window.addEventListener('resize', drawWeather);
+    </script>
+</body>
+</html>
