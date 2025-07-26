@@ -28,7 +28,7 @@ def get_all_sensor_data():
     """
     API endpoint to retrieve all sensor data.
     Supports optional 'limit' and 'order' (asc/desc) query parameters.
-    Example: /history?limit=10&order=desc
+    Example: http://127.0.0.1:3040/history?limit=10&order=desc
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -67,6 +67,7 @@ def get_all_sensor_data():
 def get_latest_sensor_data():
     """
     API endpoint to retrieve the latest sensor data entry.
+    Example: http://127.0.0.1:3040/latest
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -90,9 +91,6 @@ def get_latest_sensor_data():
     finally:
         conn.close()
 
-# --- Main Execution ---
-if __name__ == '__main__':
-    # Run the Flask app
-    # debug=True allows for automatic reloading on code changes and provides a debugger
-    # For production, set debug=False and use a production-ready WSGI server (e.g., Gunicorn)
-    app.run(host='0.0.0.0', port=3040, debug=True)
+# The app.run() call is removed here because Gunicorn will handle running the app.
+# if __name__ == '__main__':
+#     app.run(host='0.0.0.0', port=3040, debug=True)
