@@ -104,21 +104,7 @@ pip install Flask Flask-Cors
 
 Ensure your virtual environment is activated before running the scripts.
 
-### 4.1 Running the Sensor Collector
-
-This script will start inserting dummy sensor data into `sensor_data.db` at the configured interval.
-
-Navigate to the project directory in your terminal.
-
-Execute the script:
-
-```bash
-python sensor_collector.py
-```
-
-The script will continuously insert data until manually stopped (e.g., by pressing `Ctrl+C`).
-
-### 4.2 Running the Sensor API
+### 4.1 Running the Sensor API
 
 The Flask API will serve the data collected by `sensor_collector.py`. For production, it's recommended to use a WSGI HTTP server like Gunicorn.
 
