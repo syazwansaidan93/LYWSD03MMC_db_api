@@ -1,6 +1,6 @@
-# Sensor Data Collection and API System
+# Sensor Data Collection and API System for LYWSD03MMC
 
-This repository contains a simple backend system for collecting environmental sensor data (temperature and humidity) and serving it via a RESTful API. The system is built with Python, Flask, and SQLite.
+This repository contains a simple backend system for collecting environmental sensor data from LYWSD03MMC and serving it via a RESTful API. The system is built with Python, Flask, and SQLite.
 
 ## Table of Contents
 
