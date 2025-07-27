@@ -21,7 +21,7 @@ This repository contains a simple backend system for collecting environmental se
 
 This project provides a foundational backend for monitoring environmental conditions. It comprises:
 
-- A Python script to simulate (or eventually read from actual hardware) temperature and humidity data.
+- A Python script to read temperature and humidity data from LYWSD03MMC.
 - A Flask-based API to expose this collected data through HTTP endpoints.
 - A SQLite database for persistent storage of sensor readings.
 
