@@ -42,7 +42,6 @@ To continuously collect sensor data (or simulate it for development) and persist
 - `get_db_connection()`: Establishes a connection to the SQLite database.
 - `create_table()`: Ensures the sensor_readings table exists in the database.
 - `insert_sensor_data(temperature, humidity)`: Inserts a new sensor reading with its precise timestamp into the database. Includes basic error handling.
-- `generate_dummy_reading()`: Simulates realistic temperature and humidity data. This function is crucial when physical sensors are not available, allowing for testing of the data collection and storage pipeline. It generates values that fluctuate realistically over a 24-hour cycle.
 
 ### 2.2 Sensor Data API (sensor_api.py)
 
