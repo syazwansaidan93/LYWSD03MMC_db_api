@@ -31,7 +31,7 @@ This setup is ideal for local monitoring, educational purposes, or as a backend 
 
 ### 2.1 Sensor Data Collector (sensor_collector.py)
 
-This script is responsible for periodically acquiring sensor readings and storing them in a SQLite database. For development and testing purposes, it includes a dummy data generation function that simulates realistic environmental fluctuations.
+This script is responsible for periodically acquiring sensor readings and storing them in a SQLite database.
 
 **Purpose**
 
